@@ -4,7 +4,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.19;
 
 contract NFTCollection is ERC721Enumerable, Ownable {
     using Strings for uint256;
