@@ -52,7 +52,6 @@ contract StakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
     function initialize(NFTCollection _nft, RwdToken _token, uint256 _rewardPerBlock, uint256 _delayPeriod, uint256 _unbondingPeriod) public initializer {
         __UUPSUpgradeable_init();
         __Ownable_init(msg.sender);
-        __ReentrancyGuard_init();
         nft = _nft;
         token = _token;
         rewardPerBlock = _rewardPerBlock;
@@ -68,13 +67,14 @@ contract StakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     //Used to stake NFTs to the staking contract.
-    function stake(uint256[] calldata tokenIds) external whenNotPaused {
+    function stake(uint256[] calldata tokenIds) external whenNotPaused nonReentrant {
         uint256 tokenId;
         totalNftStaked += tokenIds.length;
         for (uint i = 0; i < tokenIds.length; i++) {
             tokenId = tokenIds[i];
             require(nft.ownerOf(tokenId) == msg.sender, "not your token"); // reverts if non-owner tries to use this function.
             require(vault[tokenId].tokenId == 0, "already staked");// reverts if user tries to stake same NFT again
+            
 
             nft.transferFrom(msg.sender, address(this), tokenId);
             emit NFTStaked(msg.sender, tokenId, block.timestamp);
@@ -94,7 +94,7 @@ contract StakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
     function _unstakeMany(
         address account,
         uint256[] calldata tokenIds
-    ) internal {
+    ) internal nonReentrant {
         uint256 tokenId;
         totalNftStaked -= tokenIds.length;
         for (uint i = 0; i < tokenIds.length; i++) {            // loop to implement logic for multiple NFTs in a single txn
@@ -115,7 +115,7 @@ contract StakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
     }
 
 // used to withdraw NFTs
-    function withdrawNFT(uint256[] calldata tokenIds) external {
+    function withdrawNFT(uint256[] calldata tokenIds) external nonReentrant {
         uint256 tokenId;
         for (uint i = 0; i < tokenIds.length; i++) {
             tokenId = tokenIds[i];
@@ -133,11 +133,11 @@ contract StakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
     }
 
 // used to claim rewards
-    function claim(uint256[] calldata tokenIds) external {
+    function claim(uint256[] calldata tokenIds) external  nonReentrant {
         _claim(msg.sender, tokenIds, false);
     }
 
-    function unstake(uint256[] calldata tokenIds) external whenNotPaused {
+    function unstake(uint256[] calldata tokenIds) external whenNotPaused  nonReentrant {
         _claim(msg.sender, tokenIds, true);
     }
 
@@ -177,8 +177,8 @@ contract StakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
     }
 
 // function to burn reward tokens
-    function burnRewardTokens(address burnFrom, uint256 amount) external onlyOwner {
-        token.burn(burnFrom, amount);
+    function burnRewardTokens(address burnFrom, uint256 amount) external onlyOwner nonReentrant {
+        token.burnFrom(burnFrom, amount);
         emit TokensBurned(msg.sender, amount);
     }
 
