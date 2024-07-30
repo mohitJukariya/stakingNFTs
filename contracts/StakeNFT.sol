@@ -7,8 +7,9 @@ import "./RwdToken.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-contract StakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, IERC721Receiver {
+contract StakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, ReentrancyGuard, IERC721Receiver {
     uint256 public totalNftStaked;
     uint256 public rewardPerBlock;
     uint256 public delayPeriod;
@@ -32,6 +33,8 @@ contract StakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, IERC721
     event NFTStaked(address owner, uint256 tokenId, uint256 value);
     event NFTUnstaked(address owner, uint256 tokenId, uint256 value);
     event Claimed(address owner, uint256 amount);
+    event TokensBurned(address burnFrom, uint256 amount);
+
 
     modifier whenNotPaused() {
         require(!paused, "Staking is paused");
@@ -49,12 +52,17 @@ contract StakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, IERC721
     function initialize(NFTCollection _nft, RwdToken _token, uint256 _rewardPerBlock, uint256 _delayPeriod, uint256 _unbondingPeriod) public initializer {
         __UUPSUpgradeable_init();
         __Ownable_init(msg.sender);
+        __ReentrancyGuard_init();
         nft = _nft;
         token = _token;
         rewardPerBlock = _rewardPerBlock;
         delayPeriod = _delayPeriod;
         unbondingPeriod = _unbondingPeriod;
     }
+
+    constructor() {
+   _disableInitializers();
+}
 
     // Used to implement new Implementation contract.
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
@@ -119,7 +127,7 @@ contract StakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, IERC721
                 "Unbonding period not over"
             );
 
-            nft.transferFrom(address(this), msg.sender, tokenId);
+            nft.safeTransferFrom(address(this), msg.sender, tokenId);
             delete vault[tokenId];
         }
     }
@@ -166,6 +174,12 @@ contract StakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, IERC721
             _unstakeMany(account, tokenIds);
         }
         emit Claimed(account, earned);
+    }
+
+// function to burn reward tokens
+    function burnRewardTokens(address burnFrom, uint256 amount) external onlyOwner {
+        token.burn(burnFrom, amount);
+        emit TokensBurned(msg.sender, amount);
     }
 
 // return accumulated rewards for NFTs
