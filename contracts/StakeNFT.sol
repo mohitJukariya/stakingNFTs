@@ -76,7 +76,7 @@ contract StakeNFT is Initializable, UUPSUpgradeable, OwnableUpgradeable, Reentra
             require(vault[tokenId].tokenId == 0, "already staked");// reverts if user tries to stake same NFT again
             
 
-            nft.transferFrom(msg.sender, address(this), tokenId);
+            nft.safeTransferFrom(msg.sender, address(this), tokenId);
             emit NFTStaked(msg.sender, tokenId, block.timestamp);
 
             vault[tokenId] = Stake({                                // Update all the information in vault mapping to implement 
